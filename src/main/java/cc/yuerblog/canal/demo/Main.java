@@ -18,20 +18,23 @@ public class Main {
                     11111), "example", "", "");
             try {
                 connector.connect();
-                Message message = connector.getWithoutAck(batchSize); // 获取指定数量的数据
-                long batchId = message.getId();
-                int size = message.getEntries().size();
-                if (batchId == -1 || size == 0) {
-                    System.out.println("empty message, sleep for 1 second");
-                    try {
-                        Thread.sleep(1000);
-                    } catch (InterruptedException e) {
+
+                while (true) {
+                    Message message = connector.getWithoutAck(batchSize); // 获取指定数量的数据
+                    long batchId = message.getId();
+                    int size = message.getEntries().size();
+                    if (batchId == -1 || size == 0) {
+                        System.out.println("empty message, sleep for 1 second");
+                        try {
+                            Thread.sleep(1000);
+                        } catch (InterruptedException e) {
+                        }
+                    } else {
+                        printEntry(message.getEntries());
                     }
-                } else {
-                    printEntry(message.getEntries());
+                    connector.ack(batchId); // 提交确认
+                    // connector.rollback(batchId); // 处理失败, 回滚数据
                 }
-                connector.ack(batchId); // 提交确认
-                // connector.rollback(batchId); // 处理失败, 回滚数据
             } catch (Exception e) {
                 connector.disconnect();
             }
