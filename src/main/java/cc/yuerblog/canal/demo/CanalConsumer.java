@@ -1,6 +1,5 @@
 package cc.yuerblog.canal.demo;
 
-import com.alibaba.fastjson.JSONObject;
 import com.alibaba.otter.canal.client.CanalConnector;
 import com.alibaba.otter.canal.client.CanalConnectors;
 import com.alibaba.otter.canal.protocol.CanalEntry;
@@ -21,8 +20,8 @@ public class CanalConsumer {
     public void run() {
         while (true) {
             int batchSize = 1000;
-            CanalConnector connector = CanalConnectors.newSingleConnector(new InetSocketAddress("127.0.0.1",
-                    11111), "example", "", "");
+            CanalConnector connector = CanalConnectors.newSingleConnector(new InetSocketAddress(Config.configuration().getCanalHostname(),
+                    Config.configuration().getCanalPort()), Config.configuration().getCanalDestination(), "", "");
             try {
                 connector.connect();
                 while (true) {
@@ -30,8 +29,8 @@ public class CanalConsumer {
                     long batchId = message.getId();
                     int size = message.getEntries().size();
                     if (batchId == -1 || size == 0) {
-                        System.out.println("empty message, sleep for 1 second");
                         try {
+                            handler.handleEmpty();
                             Thread.sleep(1000);
                         } catch (InterruptedException e) {
                         }
@@ -42,13 +41,14 @@ public class CanalConsumer {
                     // connector.rollback(batchId); // 处理失败, 回滚数据
                 }
             } catch (Exception e) {
-                System.out.println(e.getMessage());
+                e.printStackTrace();
+            } finally {
                 connector.disconnect();
             }
         }
     }
 
-    private void procEntries(List<CanalEntry.Entry> entrys) {
+    private void procEntries(List<CanalEntry.Entry> entrys) throws Exception {
         for (CanalEntry.Entry entry : entrys) {
             if (entry.getEntryType() == CanalEntry.EntryType.TRANSACTIONBEGIN || entry.getEntryType() == CanalEntry.EntryType.TRANSACTIONEND) {
                 continue;
@@ -76,7 +76,7 @@ public class CanalConsumer {
         }
     }
 
-    private void userCallback(CanalEntry.EventType eventType, String db, String table, CanalEntry.RowData row) {
+    private void userCallback(CanalEntry.EventType eventType, String db, String table, CanalEntry.RowData row) throws Exception {
         RowEntity rowEntity = new RowEntity();
         rowEntity.setDb(db);
         rowEntity.setTable(table);
