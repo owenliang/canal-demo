@@ -24,6 +24,7 @@ public class CanalConsumer {
                     Config.configuration().getCanalPort()), Config.configuration().getCanalDestination(), "", "");
             try {
                 connector.connect();
+                connector.subscribe(Config.configuration().getCanalFilter());
                 while (true) {
                     Message message = connector.getWithoutAck(batchSize); // 获取指定数量的数据
                     long batchId = message.getId();

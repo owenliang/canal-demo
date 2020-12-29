@@ -10,6 +10,7 @@ public class Config {
     private String canalHostname;
     private Integer canalPort;
     private String canalDestination;
+    private String canalFilter;
 
     private String logBasePath;
     private String logName;
@@ -31,6 +32,7 @@ public class Config {
         configuration.setLogName(props.getProperty("log.name"));
         configuration.setLogDtFormat(props.getProperty("log.dtFormat"));
         configuration.setLogSizeLimit(Integer.valueOf(props.getProperty("log.sizeLimit")));
+        configuration.setCanalFilter(props.getProperty("canal.filter", ""));
     }
 
     public static Config configuration() {
