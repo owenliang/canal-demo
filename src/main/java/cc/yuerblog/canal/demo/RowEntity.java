@@ -11,4 +11,5 @@ public class RowEntity {
     private String op;  // SET/DEL
     private String raw_op;  // INSERT/UPDATE/DELETE/...
     private Map<String, String> fields;
+    private Long executeTime;
 }

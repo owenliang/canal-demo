@@ -4,28 +4,35 @@ import com.alibaba.otter.canal.client.CanalConnector;
 import com.alibaba.otter.canal.client.CanalConnectors;
 import com.alibaba.otter.canal.protocol.CanalEntry;
 import com.alibaba.otter.canal.protocol.Message;
+import sun.misc.Signal;
+import sun.misc.SignalHandler;
 
 import java.net.InetSocketAddress;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class CanalConsumer {
+public class CanalConsumer implements SignalHandler {
     private RowEntityHandler handler;
+
+    private volatile Boolean running = true ;
 
     CanalConsumer(RowEntityHandler handler) {
         this.handler = handler;
     }
 
     public void run() {
-        while (true) {
+        Signal.handle(new Signal("INT"), this);
+        Signal.handle(new Signal("TERM"), this);
+
+        while (running) {
             int batchSize = 1000;
             CanalConnector connector = CanalConnectors.newSingleConnector(new InetSocketAddress(Config.configuration().getCanalHostname(),
                     Config.configuration().getCanalPort()), Config.configuration().getCanalDestination(), "", "");
             try {
                 connector.connect();
                 connector.subscribe(Config.configuration().getCanalFilter());
-                while (true) {
+                while (running) {
                     Message message = connector.getWithoutAck(batchSize); // 获取指定数量的数据
                     long batchId = message.getId();
                     int size = message.getEntries().size();
@@ -47,6 +54,8 @@ public class CanalConsumer {
                 connector.disconnect();
             }
         }
+
+        handler.handleExit();
     }
 
     private void procEntries(List<CanalEntry.Entry> entrys) throws Exception {
@@ -63,7 +72,9 @@ public class CanalConsumer {
                         e);
             }
 
+            Long executeTime = entry.getHeader().getExecuteTime();
             CanalEntry.EventType eventType = rowChage.getEventType();
+
             String binlog = entry.getHeader().getLogfileName();
             String offset = String.valueOf(entry.getHeader().getLogfileOffset());
             String db = entry.getHeader().getSchemaName();
@@ -72,16 +83,17 @@ public class CanalConsumer {
             System.out.println(String.format("binlog[%s:%s] , name[%s,%s] , eventType : %s", binlog, offset, db, table, eventType));
 
             for (CanalEntry.RowData rowData : rowChage.getRowDatasList()) {
-                userCallback(eventType, db, table, rowData);
+                userCallback(eventType, executeTime, db, table, rowData);
             }
         }
     }
 
-    private void userCallback(CanalEntry.EventType eventType, String db, String table, CanalEntry.RowData row) throws Exception {
+    private void userCallback(CanalEntry.EventType eventType, Long executeTime, String db, String table, CanalEntry.RowData row) throws Exception {
         RowEntity rowEntity = new RowEntity();
         rowEntity.setDb(db);
         rowEntity.setTable(table);
         rowEntity.setRaw_op(eventType.toString());
+        rowEntity.setExecuteTime(executeTime);
 
         List<CanalEntry.Column> columns = null;
 
@@ -100,5 +112,10 @@ public class CanalConsumer {
         rowEntity.setFields(fields);
 
         this.handler.handleRowEntity(rowEntity);
+    }
+
+    @Override
+    public void handle(Signal signal) {
+        running = false;
     }
 }

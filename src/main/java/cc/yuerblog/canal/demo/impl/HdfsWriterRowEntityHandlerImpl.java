@@ -81,7 +81,7 @@ public class HdfsWriterRowEntityHandlerImpl implements RowEntityHandler {
         String rawOp = rowEntity.getRaw_op();
         String fields = JSONObject.toJSONString(rowEntity.getFields());
 
-        String row = String.format("%s\001%s\001%s\001%s\001%s\n", db, table, op, rawOp, fields);
+        String row = String.format("%s\001%s\001%s\001%s\001%s\001%d\n", db, table, op, rawOp, fields, rowEntity.getExecuteTime());
         stream.write(row.getBytes("utf-8"));
     }
 
